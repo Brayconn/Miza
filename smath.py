@@ -1,29 +1,45 @@
 """
 Adds many useful math-related functions.
 """
-import math, cmath, fractions, mpmath, sympy, ctypes
-import numpy, tinyarray
 
-array = tinyarray.array
-import colorsys, random, threading, time
-from scipy import interpolate, special
+import os, sys, asyncio, threading, subprocess, psutil, traceback, time
+import ctypes, collections, ast, copy, pickle
+import random, math, cmath, fractions, mpmath, sympy, shlex, numpy, colorsys
 
-sympy.init_printing(use_unicode=True)
+import urllib.request
 
+from scipy import interpolate, special, signal
+from sympy.parsing.sympy_parser import parse_expr
+
+CalledProcessError = subprocess.CalledProcessError
+Process = psutil.Process()
+
+np = numpy
+array = numpy.array
+deque = collections.deque
+
+random.seed(random.random() + time.time() % 1)
 mp = mpmath.mp
-mp.dps = 128
+mp.dps = 64
 
 math.round = round
-c_ = 299792458
-inf = math.inf
-nan = math.nan
 
 mpf = mpmath.mpf
 mpc = mpmath.mpc
-matrix = mpmath.matrix
+Mat = mat = matrix = mpmath.matrix
 
+inf = math.inf
+nan = math.nan
+i = I = j = J = 1j
 pi = mp.pi
-e_ = mp.e
+E = e = mp.e
+c = 299792458
+lP = 1.61625518e-35
+mP = 2.17643524e-8
+tP = 5.39124760e-44
+h = 6.62607015e-34
+G = 6.6743015e-11
+g = 9.80665
 tau = pi * 2
 d2r = mp.degree
 phi = mp.phi
@@ -32,14 +48,86 @@ twinprime = mp.twinprime
 
 Function = sympy.Function
 Symbol = sympy.Symbol
-diff = differentiate = sympy.diff
-intg = integrate = sympy.integrate
 factorize = factorint = primeFactors = sympy.ntheory.factorint
 mobius = sympy.ntheory.mobius
+
+TRUE, FALSE = True, False
+true, false = True, False
 
 
 def nop(*args):
     pass
+
+
+class freeClass:
+    
+    def __init__(self, **kwargs):
+        for i in kwargs:
+            self.__setattr__(i, kwargs[i])
+
+
+def shuffle(it):
+    if type(it) is list:
+        random.shuffle(it)
+        return it
+    elif type(it) is tuple:
+        it = list(it)
+        random.shuffle(it)
+        return it
+    elif type(it) is dict:
+        ir = sorted(it, key=lambda x: random.random())
+        new = {}
+        for i in ir:
+            new[i] = it[i]
+        it.clear()
+        it.update(new)
+        return it
+    elif type(it) is deque:
+        it = list(it)
+        random.shuffle(it)
+        return deque(it)
+    elif isinstance(it, hlist):
+        temp = it.shuffle()
+        it.data = temp.data
+        it.offs = temp.offs
+        del temp
+        return it
+    else:
+        try:
+            it = list(it)
+            random.shuffle(it)
+            return it
+        except TypeError:
+            raise TypeError("Shuffling " + type(it) + " is not supported.")
+
+def sort(it, key=lambda x: x, reverse=False):
+    if type(it) is list:
+        it.sort(key=key, reverse=reverse)
+        return it
+    elif type(it) is tuple:
+        it = sorted(it, key=key, reverse=reverse)
+        return it
+    elif type(it) is dict:
+        ir = sorted(it, key=key, reverse=reverse)
+        new = {}
+        for i in ir:
+            new[i] = it[i]
+        it.clear()
+        it.update(new)
+        return it
+    elif type(it) is deque:
+        it = sorted(it, key=key, reverse=reverse)
+        return deque(it)
+    elif isinstance(it, hlist):
+        hlist(sorted(it, key=key, reverse=reverse))
+        return it
+    else:
+        try:
+            it = list(it)
+            it.sort(key=key, reverse=reverse)
+            return it
+        except TypeError:
+            raise TypeError("Sorting " + type(it) + " is not supported.")
 
 
 phase = cmath.phase
@@ -68,6 +156,7 @@ asech = mpmath.asech
 acsch = mpmath.acsch
 acoth = mpmath.acoth
 sinc = mpmath.sinc
+atan2 = mpmath.atan2
 ei = mpmath.ei
 e1 = mpmath.e1
 en = mpmath.expint
@@ -136,8 +225,10 @@ def round(x, y=None):
     except:
         if type(x) is complex:
             return round(x.real, y) + round(x.imag, y) * 1j
-    return x
-
+    try:
+        return math.round(x)
+    except:
+        return x
 
 def ceil(x):
     try:
@@ -145,8 +236,10 @@ def ceil(x):
     except:
         if type(x) is complex:
             return ceil(x.real) + ceil(x.imag) * 1j
-    return x
-
+    try:
+        return math.ceil(x)
+    except:
+        return x
 
 def floor(x):
     try:
@@ -154,8 +247,10 @@ def floor(x):
     except:
         if type(x) is complex:
             return floor(x.real) + floor(x.imag) * 1j
-    return x
-
+    try:
+        return math.floor(x)
+    except:
+        return x
 
 def trunc(x):
     try:
@@ -163,28 +258,27 @@ def trunc(x):
     except:
         if type(x) is complex:
             return trunc(x.real) + trunc(x.imag) * 1j
-    return x
+    try:
+        return math.trunc(x)
+    except:
+        return x
 
 
 def sqr(x):
     return ((sin(x) >= 0) << 1) - 1
 
-
 def saw(x):
     return (x / pi + 1) % 2 - 1
 
-
 def tri(x):
     return (abs((0.5 - x / pi) % 2 - 1)) * 2 - 1
-
 
 def sgn(x):
     return (((x > 0) << 1) - 1) * (x != 0)
 
 
 def frand(x=1, y=0):
-    return (random.random() / mpf(random.random())) % x + y
-
+    return (random.random() * max(x, y) / mpf(random.random())) % x + y
 
 def xrand(x, y=None, z=0):
     if y == None:
@@ -193,20 +287,8 @@ def xrand(x, y=None, z=0):
         return x
     return random.randint(floor(min(x, y)), ceil(max(x, y)) - 1) + z
 
-
 def rrand(x=1, y=0):
     return frand(x) ** (1 - y)
-
-
-def log(x, y=e_):
-    try:
-        return x.ln() / math.log(y)
-    except:
-        return math.log(x, y)
-
-
-def atan2(y, x=1):
-    return math.atan2(y, x)
 
 
 def modularInv(a, b):
@@ -275,6 +357,7 @@ def next6np(start=0):
 
 
 def isPrime(n):
+    
     def divisibility(n):
         t = min(n, 2 + ceil(log(n) ** 2))
         g = next6np()
@@ -357,9 +440,8 @@ def isPrime(n):
         return True
     return None
 
-
 def generatePrimes(a=2, b=inf, c=1):
-    primes = []
+    primes = hlist()
     a = round(a)
     b = round(b)
     if b is None:
@@ -394,6 +476,19 @@ def addDict(a, b, replace=True):
     for k in b:
         r[k] = b[k] + a.get(k, 0)
     return r
+
+def subDict(d, key):
+    output = dict(d)
+    try:
+        key[0]
+    except TypeError:
+        key = [key]
+    for k in key:
+        try:
+            output.pop(k)
+        except KeyError:
+            pass
+    return output
 
 
 def roundMin(x):
@@ -441,7 +536,6 @@ def gcd(x, y=1):
         return x
     return x
 
-
 def lcm2(x, y=1):
     if x != y:
         x = abs(x)
@@ -459,7 +553,6 @@ def lcm2(x, y=1):
             return toFrac(x / y)[0]
     return x
 
-
 def lcm(*x):
     try:
         while True:
@@ -471,7 +564,6 @@ def lcm(*x):
         while len(x) > 1:
             x = [lcm2(x[i], x[-i - 1]) for i in range(ceil(len(x) / 2))]
     return x[-1]
-
 
 def lcmRange(x):
     primes = generatePrimes(1, x, -1)
@@ -542,7 +634,7 @@ def romanNumerals(num, order=0):
     sym = ""
     output = ""
     if num >= 4000:
-        carry //= 1000
+        carry = num // 1000
         num %= 1000
         over = romanNumerals(carry, order + 1)
     while num >= 1000:
@@ -667,10 +759,9 @@ def bytes2Hex(b):
         o += c + " "
     return o[:-1]
 
-
 def hex2Bytes(h):
     o = []
-    h = h.replace(" ", "")
+    h = h.replace(" ", "").replace("\r", "").replace("\n", "")
     for a in range(0, len(h), 2):
         o.append(int(h[a : a + 2], 16))
     return bytes(o)
@@ -679,13 +770,11 @@ def hex2Bytes(h):
 def colourCalculation(a, offset=0):
     return adjColour(colorsys.hsv_to_rgb((a / 1536) % 1, 1, 1), offset, 255)
 
-
 def colour2Raw(c):
     if len(c) == 3:
         return (c[0] << 16) + (c[1] << 8) + c[2]
     else:
         return (c[0] << 16) + (c[1] << 8) + c[2] + (c[3] << 24)
-
 
 def raw2Colour(x):
     if x > 1 << 24:
@@ -693,14 +782,11 @@ def raw2Colour(x):
     else:
         return verifyColour(((x >> 16) & 255, (x >> 8) & 255, x & 255))
 
-
 def hex2Colour(h):
     return verifyColour(hex2Bytes(h))
 
-
 def luma(c):
     return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-
 
 def verifyColour(c):
     c = list(c)
@@ -712,7 +798,6 @@ def verifyColour(c):
         c[i] = int(abs(c[i]))
     return c
 
-
 def fillColour(a):
     if type(a) is complex:
         a = a.real
@@ -723,7 +808,6 @@ def fillColour(a):
     a = round(a)
     return verifyColour([a, a, a])
 
-
 def negColour(c, t=127):
     i = luma(c)
     if i > t:
@@ -731,10 +815,8 @@ def negColour(c, t=127):
     else:
         return fillColour(255)
 
-
 def invColour(c):
     return [255 - i for i in c]
-
 
 def adjColour(colour, brightness=0, intensity=1, hue=0, bits=0, scale=False):
     if hue != 0:
@@ -795,14 +877,12 @@ def multiVectorScalarOp(dest, operator):
         output.append(s)
     return output
 
-
 def vectorVectorOp(dest, source, operator):
     expression = "dest[i]" + operator + "source[i]"
     function = eval("lambda dest,source,i: " + expression)
     for i in range(len(source)):
         dest[i] = function(dest, source, i)
     return dest
-
 
 def vectorScalarOp(dest, source, operator):
     expression = "dest[i]" + operator + str(source)
@@ -837,7 +917,6 @@ def resizeVector(v, length, mode=5):
             resizing.append(resizeVector(v, new, i / floor(mode) * 5))
         resized = numpy.mean(resizing, 0)
     return resized
-
 
 def get(v, i, mode=5):
     size = len(v)
@@ -882,13 +961,11 @@ def limitList(source, dest, direction=False):
 def randomPolarCoord(x=1):
     return polarCoords(frand(x), frand(tau))
 
-
 def polarCoords(dist, angle, pos=None):
     p = dist * array([math.cos(angle), math.sin(angle)])
     if pos is None:
         return p
     return p + pos
-
 
 def cartesianCoords(x, y, pos=None):
     if pos is None:
@@ -910,7 +987,6 @@ def convertRect(rect, edge=0):
     dest_rect[3] -= edge
     return dest_rect
 
-
 def inRect(pos, rect, edge=0):
     dest_rect = convertRect(rect, edge)
     if pos[0] - dest_rect[0] <= 0:
@@ -922,7 +998,6 @@ def inRect(pos, rect, edge=0):
     if pos[1] - dest_rect[3] > 0:
         return False
     return True
-
 
 def toRect(pos, rect, edge=0):
     p = list(pos)
@@ -953,7 +1028,6 @@ def toRect(pos, rect, edge=0):
             continue
     return p, lr, ud
 
-
 def rdRect(pos, rect, edge=0):
     dest_rect = convertRect(rect, edge)
     if not inRect(pos, rect, edge):
@@ -974,14 +1048,12 @@ def diffExpD(r, s, t):
     else:
         return log(s * (r ** t - 1), r)
 
-
 def diffExpT(r, s, d):
     coeff = d * log(r) / s + 1
     if coeff < 0:
         return inf
     else:
         return log(coeff, r)
-
 
 def predictTrajectory(src, dest, vel, spd, dec=1, boundary=None, edge=0):
     pos = array(dest)
@@ -1044,7 +1116,6 @@ def angleDifference(angle1, angle2, unit=tau):
     b = abs(angle2 - unit - angle1)
     return min(a, b)
 
-
 def angleDistance(angle1, angle2, unit=tau):
     angle1 %= unit
     angle2 %= unit
@@ -1059,7 +1130,6 @@ def frameDistance(pos1, pos2, vel1, vel2):
     line2 = [pos2 - vel2, pos2]
     return intervalIntervalDist(line1, line2)
 
-
 def intervalIntervalDist(line1, line2):
     if intervalsIntersect(line1, line2):
         return 0
@@ -1069,7 +1139,6 @@ def intervalIntervalDist(line1, line2):
         pointIntervalDist(line2[0], line1),
         pointIntervalDist(line2[1], line1)]
     return min(distances)
-
 
 def pointIntervalDist(point, line):
     px, py = point
@@ -1090,7 +1159,6 @@ def pointIntervalDist(point, line):
         dx = px - x1 - t * dx
         dy = py - y1 - t * dy
     return hypot(dx, dy)
-
 
 def intervalsIntersect(line1, line2):
     x11, y11 = line1[0]
@@ -1115,7 +1183,6 @@ def func2Array(func, size=4096):
     array = function(numpy.arange(0, period, 1 / (size + 1) * period))
     return array
 
-
 def array2Harmonics(data, precision=1024):
     output = []
     T = len(data)
@@ -1132,7 +1199,6 @@ def array2Harmonics(data, precision=1024):
                 p = 0
             output.append(numpy.array((R, p)))
     return numpy.array(output[1 : precision + 1])
-
 
 def harmonics2Array(period, harmonics, func="sin(x)"):
     expression = func
@@ -1170,7 +1236,1119 @@ def strGetRem(s, arg):
         return s, False
 
 
+def htmlDecode(s):
+    while len(s) > 7:
+        try:
+            i = s.index("&#")
+        except ValueError:
+            break
+        try:
+            if s[i + 2] == "x":
+                h = "0x"
+                p = i + 3
+            else:
+                h = ""
+                p = i + 2
+            for a in range(4):
+                if s[p + a] == ";":
+                    v = int(h + s[p:p + a])
+                    break
+            c = chr(v)
+            s = s[:i] + c + s[p + a + 1:]
+        except ValueError:
+            continue
+        except IndexError:
+            continue
+    s = s.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+    return s.replace("&quot;", '"').replace("&apos;", "'")
+
+
+__units = {
+    "galactic year": 7157540528801820.28133333333333,
+    "millenium": [31556925216., "millenia"],
+    "century": [3155692521.6, "centuries"],
+    "decade": 315569252.16,
+    "year": 31556925.216,
+    "month": 2629743.768,
+    "week": 604800.,
+    "day": 86400.,
+    "hour": 3600.,
+    "minute": 60.,
+    "second": 1,
+}
+
+def timeConv(s):
+    if not isValid(s):
+        high = "galactic years"
+        return [str(s) + " " + high]
+    r = s < 0
+    s = abs(s)
+    taken = []
+    for i in __units:
+        a = None
+        t = m = __units[i]
+        if type(t) is list:
+            t = t[0]
+        if type(t) is int:
+            a = round(s, 3)
+        elif s >= t:
+            a = int(s // t)
+            s = s % t
+        if a:
+            if a != 1:
+                if type(m) is list:
+                    i = m[1]
+                else:
+                    i += "s"
+            taken.append("-" * r + str(roundMin(a)) + " " + str(i))
+    if not len(taken):
+        return [str(roundMin(s)) + " seconds"]
+    return taken
+
+def sec2Time(s):
+    return " ".join(timeConv(s))
+
+def dhms(s):
+    if not isValid(s):
+        return str(s)
+    s = round(s)
+    output = str(s % 60)
+    if len(output) < 2:
+        output = "0" + output
+    if s >= 60:
+        temp = str((s // 60) % 60)
+        if len(temp) < 2 and s >= 3600:
+            temp = "0" + temp
+        output = temp + ":" + output
+        if s >= 3600:
+            temp = str((s // 3600) % 24)
+            if len(temp) < 2 and s >= 86400:
+                temp = "0" + temp
+            output = temp + ":" + output
+            if s >= 86400:
+                output = str(s // 86400) + ":" + output
+    else:
+        output = "0:" + output
+    return output
+
+
+def noHighlight(s):
+    s = str(s).replace("[", "⦍").replace("]", "⦎")
+    s = s.replace("@", "＠")
+    return s
+
+__fmts = [
+    "𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙",
+    "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫𝓪𝓫𝓬𝓭𝓮𝓯𝓰𝓱𝓲𝓳𝓴𝓵𝓶𝓷𝓸𝓹𝓺𝓻𝓼𝓽𝓾𝓿𝔀𝔁𝔂𝔃𝓐𝓑𝓒𝓓𝓔𝓕𝓖𝓗𝓘𝓙𝓚𝓛𝓜𝓝𝓞𝓟𝓠𝓡𝓢𝓣𝓤𝓥𝓦𝓧𝓨𝓩",
+    "𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫𝒶𝒷𝒸𝒹𝑒𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏𝒜𝐵𝒞𝒟𝐸𝐹𝒢𝐻𝐼𝒥𝒦𝐿𝑀𝒩𝒪𝒫𝒬𝑅𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵",
+    "𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ",
+    "0123456789𝔞𝔟𝔠𝔡𝔢𝔣𝔤𝔥𝔦𝔧𝔨𝔩𝔪𝔫𝔬𝔭𝔮𝔯𝔰𝔱𝔲𝔳𝔴𝔵𝔶𝔷𝔄𝔅ℭ𝔇𝔈𝔉𝔊ℌℑ𝔍𝔎𝔏𝔐𝔑𝔒𝔓𝔔ℜ𝔖𝔗𝔘𝔙𝔚𝔛𝔜ℨ",
+    "0123456789𝖆𝖇𝖈𝖉𝖊𝖋𝖌𝖍𝖎𝖏𝖐𝖑𝖒𝖓𝖔𝖕𝖖𝖗𝖘𝖙𝖚𝖛𝖜𝖝𝖞𝖟𝕬𝕭𝕮𝕯𝕰𝕱𝕲𝕳𝕴𝕵𝕶𝕷𝕸𝕹𝕺𝕻𝕼𝕽𝕾𝕿𝖀𝖁𝖂𝖃𝖄𝖅",
+    "０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ",
+    #"0123456789ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘQʀꜱᴛᴜᴠᴡxʏᴢᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘQʀꜱᴛᴜᴠᴡxʏᴢ",
+    "0123456789🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉",
+    "0123456789🅰🅱🅲🅳🅴🅵🅶🅷🅸🅹🅺🅻🅼🅽🅾🅿🆀🆁🆂🆃🆄🆅🆆🆇🆈🆉🅰🅱🅲🅳🅴🅵🅶🅷🅸🅹🅺🅻🅼🅽🅾🅿🆀🆁🆂🆃🆄🆅🆆🆇🆈🆉",
+    "⓪①②③④⑤⑥⑦⑧⑨ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ",
+    "0123456789𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡",
+    "0123456789𝙖𝙗𝙘𝙙𝙚𝙛𝙜𝙝𝙞𝙟𝙠𝙡𝙢𝙣𝙤𝙥𝙦𝙧𝙨𝙩𝙪𝙫𝙬𝙭𝙮𝙯𝘼𝘽𝘾𝘿𝙀𝙁𝙂𝙃𝙄𝙅𝙆𝙇𝙈𝙉𝙊𝙋𝙌𝙍𝙎𝙏𝙐𝙑𝙒𝙓𝙔𝙕",
+    "𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉",
+    "0123456789ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖqʳˢᵗᵘᵛʷˣʸᶻ🇦🇧🇨🇩🇪🇫🇬🇭🇮🇯🇰🇱🇲🇳🇴🇵🇶🇷🇸🇹🇺🇻🇼🇽🇾🇿",
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+]
+__map = {__fmts[k][i]: __fmts[-1][i] for k in range(len(__fmts) - 1) for i in range(len(__fmts[k]))}
+__trans = "".maketrans(__map)
+
+def uniStr(s, fmt=0):
+    if type(s) is not str:
+        s = str(s)
+    for i in range(len(__fmts[-1])):
+        s = s.replace(__fmts[-1][i], __fmts[fmt][i])
+    return s
+
+def reconstitute(s):
+    return s.translate(__trans)
+
+
+__hlist_maxoff__ = (1 << 31) - 1
+
+class hlist(collections.abc.MutableSequence):
+
+    """
+custom list-like data structure that incorporates the functionality of dicts in \
+order to have average O(1) constant time insertion on both sides as well as O(1) \
+lookup time for all elements. Includes many array and numeric operations."""
+
+    def waiting(func):
+        def call(self, *args, force=False, **kwargs):
+            if not force:
+                while self.block:
+                    time.sleep(0.00001)
+            return func(self, *args, **kwargs)
+        return call
+
+    def blocking(func):
+        def call(self, *args, force=False, **kwargs):
+            if not force:
+                while self.block:
+                    time.sleep(0.00001)
+            self.block = True
+            self.chash = None
+            try:
+                output = func(self, *args, **kwargs)
+                self.block = False
+            except:
+                self.block = False
+                raise
+            return output
+        return call
+
+    def forceTuple(self, value):
+        try:
+            return tuple(value)
+        except TypeError:
+            return (value,)
+
+    def iterator(self, reverse=False):
+        if reverse:
+            r = xrange(len(self.data) - 1, -1)
+        else:
+            r = range(len(self.data))
+        for i in r:
+            if not i + self.offs in self.data:
+                break
+            yield self.data[self.offs + i]
+        return
+
+    def constantIterator(self, other):
+        while True:
+            yield other
+
+    def createIterator(self, other, force=False):
+        d = self.data
+        try:
+            iterable = iter(other)
+            if len(other) != len(d) and not force:
+                raise IndexError(
+                    "Unable to perform operation on objects with size "
+                    + str(len(d)) + " and " + str(len(other)) + "."
+                )
+            return iterable
+        except TypeError:
+            return self.constantIterator(other)
+
+    def deleteobj(self, item):
+        del item
+
+    @blocking
+    def clear(self):
+        temp = self.data
+        self.data = {}
+        self.offs = 0
+        doParallel(self.deleteobj, [temp], name="deleter", killable=False)
+        return self
+
+    @waiting
+    def copy(self):
+        return hlist(self)
+
+    @waiting
+    def sort(self):
+        return hlist(sorted(self))
+
+    @waiting
+    def shuffle(self):
+        temp = list(self)
+        return hlist(shuffle(temp))
+
+    @blocking
+    def rotate(self, steps):
+        s = len(self.data)
+        steps = -steps % s
+        if steps > s / 2:
+            steps -= s
+        if steps < 0:
+            for i in xrange(steps):
+                self.appendleft(self.popright(force=True), force=True)
+        else:
+            for i in range(steps):
+                self.append(self.popleft(force=True), force=True)
+        return self
+
+    @blocking
+    def rotateleft(self, steps):
+        return self.rotate(-steps, force=True)
+
+    rotateright = rotate
+
+    @blocking
+    def isempty(self):
+        s = len(self.data)
+        if s:
+            if abs(self.offs) > self.maxoff:
+                self.reconstitute(force=True)
+            elif s == 1 and self.offs:
+                temp = self.data
+                self.data = {0: self.data[self.offs]}
+                self.offs = 0
+                doParallel(self.deleteobj, [temp], killable=False)
+            return False
+        self.offs = 0
+        return True
+
+    @blocking
+    def popleft(self):
+        key = self.offs
+        temp = self.data.pop(key)
+        self.offs += 1
+        self.isempty(force=True)
+        return temp
+
+    @blocking
+    def popright(self):
+        key = self.offs + len(self.data) - 1
+        temp = self.data[key]
+        self.data.pop(key)
+        self.isempty(force=True)
+        return temp
+
+    @blocking
+    def pop(self, index=None):
+        if index is None:
+            return self.popright(force=True)
+        if index >= len(self.data):
+            return self.popright(force=True)
+        elif index == 0:
+            return self.popleft(force=True)
+        index %= len(self.data)
+        temp = self.data[index + self.offs]
+        if index < len(self.data) / 2:
+            for i in range(index + self.offs, self.offs, -1):
+                self.data[i] = self.data[i - 1]
+            self.popleft(force=True)
+        else:
+            for i in range(index + self.offs, self.offs + len(self.data) - 1):
+                self.data[i] = self.data[i + 1]
+            self.popright(force=True)
+        self.isempty(force=True)
+        return temp
+
+    @blocking
+    def insert(self, index, value):
+        if index >= len(self.data):
+            return self.append(value, force=True)
+        elif index == 0:
+            return self.appendleft(value, force=True)
+        index %= len(self.data)
+        if index < len(self.data) / 2:
+            for i in range(self.offs, self.offs + index):
+                self.data[i - 1] = self.data[i]
+            self.offs -= 1
+            self.data[index + self.offs] = value
+        else:
+            for i in range(self.offs + len(self.data) - 1, index + self.offs - 1, - 1):
+                self.data[i + 1] = self.data[i]
+            self.data[index + self.offs] = value
+        return self
+
+    @blocking
+    def remove(self, value):
+        for i in range(self.offs, self.offs + len(self.data)):
+            if self.data[i] == value:
+                self.pop(i, force=True)
+                self.isempty(force=True)
+                return self
+        raise IndexError(str(value) + " not found.")
+
+    @waiting
+    def index(self, value):
+        for i in self:
+            if i == value:
+                return i
+        raise IndexError(str(value) + " not found.")
+
+    @waiting
+    def search(self, value):
+        output = hlist()
+        for i in self:
+            if i == value:
+                output.append(i, force=True)
+        return output
+
+    @waiting
+    def count(self, value):
+        output = 0
+        for i in self:
+            if i == value:
+                output += 1
+        return output
+
+    @waiting
+    def concat(self, value):
+        temp = self.copy()
+        temp.extend(value, force=True)
+        return temp
+
+    @blocking
+    def appendleft(self, value):
+        self.offs -= 1
+        self.data[self.offs] = value
+        return self
+
+    @blocking
+    def append(self, value):
+        self.data[self.offs + len(self.data)] = value
+        return self
+
+    appendright = append
+
+    @blocking
+    def extendleft(self, value):
+        value = reversed(self.forceTuple(value))
+        for i in value:
+            self.appendleft(i, force=True)
+        return self
+
+    @blocking
+    def extend(self, value):
+        value = self.forceTuple(value)
+        for i in value:
+            self.append(i, force=True)
+        return self
+
+    extendright = extend
+
+    @blocking
+    def fill(self, value):
+        data = (value,) * len(self.data)
+        self.__init__(data)
+
+    @blocking
+    def clip(self, a, b=None):
+        if b is None:
+            b = -a
+        a, b = sorted(a, b)
+        d = self.data
+        for i in d:
+            if d[i] < a:
+                d[i] = a
+            elif d[i] > b:
+                d[i] = b
+        return self
+
+    @waiting
+    def real(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = d[i].real
+        return temp
+
+    @waiting
+    def imag(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = d[i].imag
+        return temp
+
+    @waiting
+    def float(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = float(d[i])
+        return temp
+
+    @waiting
+    def complex(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = complex(d[i])
+        return temp
+
+    @waiting
+    def mpf(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = mpf(d[i])
+        return temp
+
+    @blocking
+    def reconstitute(self, data=None):
+        if data is None:
+            data = self.data
+        values = deque()
+        l = sorted(data)
+        for i in l:
+            values.append(data.pop(i))
+        self.__init__(values)
+
+    @blocking
+    def delitems(self, iterable):
+        popped = False
+        for i in iterable:
+            self.data.pop(i + self.offs)
+            popped = True
+        if popped:
+            self.reconstitute(force=True)
+        return self
+
+    pops = delitems
+
+    def __init__(self, iterable=(), maxoff=__hlist_maxoff__, **void):
+        self.chash = None
+        self.block = True
+        self.maxoff = maxoff
+        if isinstance(iterable, hlist) and len(iterable):
+            self.offs = iterable.offs
+            self.data = iterable.data.copy()
+        else:
+            self.offs = 0
+            d = self.data = {}
+            try:
+                iterable = iter(iterable)
+                i = 0
+                while True:
+                    try:
+                        d[i] = next(iterable)
+                        i += 1
+                    except StopIteration:
+                        break
+            except TypeError:
+                d[0] = iterable
+        self.block = False
+
+    def __delattr__(self, name, value):
+        raise AttributeError("Deleting attributes is not permitted.")
+
+    @waiting
+    def __call__(self, arg=1, **void):
+        if arg == 1:
+            return self.copy()
+        return self * arg
+
+    def __hash__(self):
+        if self.chash is None:
+            self.chash = hash(tuple(self))
+        return self.chash
+
+    def __str__(self):
+        return "⟨" + ", ".join(str(i) for i in iter(self)) + "⟩"
+
+    def __repr__(self):
+        return "hlist(" + str(tuple(self)) + ")"
+
+    def __bool__(self):
+        return bool(len(self.data))
+
+    @blocking
+    def __iadd__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] += next(iterable)
+        return self
+
+    @blocking
+    def __isub__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] -= next(iterable)
+        return self
+
+    @blocking
+    def __imul__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] *= next(iterable)
+        return self
+
+    @blocking
+    def __imatmul__(self, other):
+        temp1 = numpy.array(tuple(self))
+        temp2 = numpy.array(self.forceTuple(other))
+        result = temp1 @ temp2
+        self.__init__(result)
+        return self
+
+    @blocking
+    def __itruediv__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            try:
+                d[i] /= next(iterable)
+            except ZeroDivisionError:
+                d[i] = inf * sgn(d[i])
+        return self
+
+    @blocking
+    def __ifloordiv__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            try:
+                d[i] //= next(iterable)
+            except ZeroDivisionError:
+                d[i] = 0
+        return self
+
+    @blocking
+    def __imod__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            try:
+                d[i] %= next(iterable)
+            except ZeroDivisionError:
+                d[i] = 0
+        return self
+
+    @blocking
+    def __ipow__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] **= next(iterable)
+        return self
+
+    @blocking
+    def __ilshift__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] <<= r
+            except ValueError:
+                d[i] >>= -r
+            except TypeError:
+                d[i] *= 2 ** r
+        return self
+
+    @blocking
+    def __irshift__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] >>= r
+            except ValueError:
+                d[i] <<= -r
+            except TypeError:
+                d[i] //= 2 ** r
+        return self
+
+    @blocking
+    def __iand__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] &= r
+            except TypeError:
+                d[i] = int(d[i]) & int(r)
+        return self
+
+    @blocking
+    def __ixor__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] ^= r
+            except TypeError:
+                d[i] = int(d[i]) ^ int(r)
+        return self
+
+    @blocking
+    def __ior__(self, other):
+        d = self.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] |= r
+            except TypeError:
+                d[i] = int(d[i]) | int(r)
+        return self
+
+    @waiting
+    def __neg__(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = -d[i]
+        return temp
+
+    @waiting
+    def __pos__(self):
+        return self
+
+    @waiting
+    def __abs__(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = abs(d[i])
+        return temp
+
+    @waiting
+    def __invert__(self):
+        temp = self.copy()
+        d = temp.data
+        for i in d:
+            d[i] = ~d[i]
+        return temp
+
+    @waiting
+    def __add__(self, other):
+        temp = self.copy()
+        temp += other
+        return temp
+
+    @waiting
+    def __sub__(self, other):
+        temp = self.copy()
+        temp -= other
+        return temp
+
+    @waiting
+    def __mul__(self, other):
+        temp = self.copy()
+        temp *= other
+        return temp
+
+    @waiting
+    def __matmul__(self, other):
+        temp1 = numpy.array(tuple(self))
+        temp2 = numpy.array(self.forceTuple(other))
+        result = temp1 @ temp2
+        return hlist(result)
+
+    @waiting
+    def __truediv__(self, other):
+        temp = self.copy()
+        temp /= other
+        return temp
+
+    @waiting
+    def __floordiv__(self, other):
+        temp = self.copy()
+        temp //= other
+        return temp
+
+    @waiting
+    def __mod__(self, other):
+        temp = self.copy()
+        temp %= other
+        return temp
+
+    @waiting
+    def __pow__(self, other):
+        temp = self.copy()
+        temp **= other
+        return temp
+
+    @waiting
+    def __lshift__(self, other):
+        temp = self.copy()
+        temp <<= other
+        return temp
+
+    @waiting
+    def __rshift__(self, other):
+        temp = self.copy()
+        temp >>= other
+        return temp
+
+    @waiting
+    def __and__(self, other):
+        temp = self.copy()
+        temp &= other
+        return temp
+
+    @waiting
+    def __xor__(self, other):
+        temp = self.copy()
+        temp ^= other
+        return temp
+
+    @waiting
+    def __or__(self, other):
+        temp = self.copy()
+        temp |= other
+        return temp
+
+    @waiting
+    def __round__(self, prec=0):
+        temp = numpy.array(tuple(self))
+        temp = numpy.round(temp, prec)
+        if prec <= 0:
+            temp = temp.astype(int)
+        return hlist(temp)
+
+    @waiting
+    def __trunc__(self):
+        temp = numpy.array(tuple(self))
+        return hlist(numpy.trunc(temp).astype(int))
+
+    @waiting
+    def __floor__(self):
+        temp = numpy.array(tuple(self))
+        return hlist(numpy.floor(temp).astype(int))
+
+    @waiting
+    def __ceil__(self):
+        temp = numpy.array(tuple(self))
+        return hlist(numpy.ceil(temp).astype(int))
+
+    def __index__(self):
+        return round(numpy.sum(tuple(self)))
+    
+    __radd__ = __add__
+
+    def __rsub__(self, other):
+        return -self + other
+    
+    __rmul__ = __mul__
+    __rmatmul__ = __matmul__
+
+    @waiting
+    def __rtruediv__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] = r / d[i]
+            except ZeroDivisionError:
+                d[i] = inf * sgn(r)
+        return temp
+
+    @waiting
+    def __rfloordiv__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            try:
+                d[i] = next(iterable) // d[i]
+            except ZeroDivisionError:
+                d[i] = 0
+        return temp
+
+    @waiting
+    def __rmod__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            try:
+                d[i] = next(iterable) % d[i]
+            except ZeroDivisionError:
+                d[i] = 0
+        return temp
+
+    @waiting
+    def __rpow__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = next(iterable) ** d[i]
+        return temp
+
+    @waiting
+    def __rlshift__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] = r << d[i]
+            except ValueError:
+                d[i] = r >> -d[i]
+            except TypeError:
+                d[i] = r * 2 ** d[i]
+        return temp
+
+    @waiting
+    def __rrshift__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            r = next(iterable)
+            try:
+                d[i] = r >> d[i]
+            except ValueError:
+                d[i] = r << -d[i]
+            except TypeError:
+                d[i] = r // 2 ** d[i]
+        return temp
+    
+    __rand__ = __and__
+    __rxor__ = __xor__
+    __ror__ = __or__
+
+    @waiting
+    def __lt__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = d[i] < next(iterable)
+        return temp
+
+    @waiting
+    def __le__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = d[i] <= next(iterable)
+        return temp
+
+    @waiting
+    def __eq__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = d[i] == next(iterable)
+        return temp
+
+    @waiting
+    def __ne__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = d[i] != next(iterable)
+        return temp
+
+    @waiting
+    def __gt__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = d[i] > next(iterable)
+        return temp
+
+    @waiting
+    def __ge__(self, other):
+        temp = self.copy()
+        d = temp.data
+        iterable = self.createIterator(other)
+        for i in d:
+            d[i] = d[i] >= next(iterable)
+        return temp
+
+    @waiting
+    def __getitem__(self, key):
+        if type(key) is slice:
+            temp = hlist()
+            s = key.indices(len(self.data))
+            for i in xrange(*s):
+                temp.append(self.data[i + self.offs], force=True)
+            return temp
+        elif type(key) is not int:
+            key = complex(key)
+            return get(self, key, 1)
+        index = self.offs + key % len(self.data)
+        return self.data[index]
+
+    @blocking
+    def __setitem__(self, key, value):
+        if type(key) is slice:
+            s = key.indices(len(self.data))
+            iterable = self.createIterator(value, True)
+            for i in xrange(*s):
+                self.data[i + self.offs] = next(iterable)
+            return value
+        elif type(key) is str:
+            key = int(key)
+        index = self.offs + key % len(self.data)
+        self.data[index] = value
+        return value
+
+    @blocking
+    def __delitem__(self, key):
+        if type(key) is slice:
+            temp = hlist()
+            s = key.indices(len(self.data))
+            for i in xrange(*s):
+                temp.append(self.data[i + self.offs], force=True)
+                self.data.pop(i + self.offs)
+            self.reconstitute(force=True)
+            return temp
+        self.pop(key, force=True)
+
+    def __len__(self):
+        return len(self.data)
+
+    __length_hint__ = __len__
+
+    def __iter__(self):
+        return self.iterator()
+
+    def __reversed__(self):
+        return self.iterator(True)
+
+    @waiting
+    def __bytes__(self):
+        temp = bytes()
+        for i in self:
+            temp += bytes((round(i) & 255,))
+        return temp
+
+    def __contains__(self, item):
+        for i in self:
+            if i == item:
+                return True
+        return False
+
+    def __copy__(self):
+        return self.copy()
+
+def hrange(a, b=None, c=None, maxoff=__hlist_maxoff__):
+    return hlist(xrange(a, b, c), maxoff)
+
+def hzero(size, maxoff=__hlist_maxoff__):
+    return hlist((0 for i in range(size)), maxoff)
+
+
+class pickled:
+
+    def __init__(self, obj=None, ignore=()):
+        self.data = obj
+        self.ignores = {}
+        self.__str__ = obj.__str__
+        self.__dict__.update(getattr(obj, "__dict__", {}))
+
+    def ignore(self, item):
+        self.ignores[item] = True
+
+    def __repr__(self):
+        c = dict(self.data)
+        for i in self.ignores:
+            c.pop(i)
+        d = pickle.dumps(c)
+        if len(d) > 1048576:
+            return "None"
+        return (
+            "pickled(pickle.loads(hex2Bytes('''"
+            + bytes2Hex(d).replace(" ", "")
+            + "''')))"
+        )
+
+
+def readline(stream, timeout=10):
+    output = bytes()
+    t = time.time()
+    while b"\n" not in output and time.time() - t < timeout:
+        c = stream.read(1)
+        if c:
+            output += c
+        else:
+            time.sleep(0.002)
+    print(output)
+    return output
+    
+
+__subs__ = {}
+
+def subCount():
+    count = 0
+    for i in list(__subs__):
+        if __subs__[i].is_running():
+            count += 1
+        else:
+            __subs__.pop(i)
+    return count
+
+def subKill():
+    for sub in __subs__.values():
+        sub.kill()
+    __subs__.clear()
+
+def subFunc(key, com, data_in, timeout):    
+    if key in __subs__:
+        try:
+            while __subs__[key].busy:
+                time.sleep(0.01)
+        except KeyError:
+            return subFunc(key, com, data_in, timeout)
+    else:
+        __subs__[key] = freeClass(
+            busy=True,
+            is_running=lambda: True
+        )
+    if isinstance(__subs__[key], psutil.Popen):
+        proc = __subs__[key]
+        if not proc.is_running():
+            __subs__.pop(key)
+            del proc
+            return subFunc(key, com, data_in, timeout)
+    else:
+        proc = __subs__[key] = psutil.Popen(
+            com,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    thread = freeClass(kill=lambda: None)
+    try:
+        t = time.time()
+        proc.busy = True
+        d = repr(bytes(str(data_in), "utf-8")).encode("utf-8") + b"\n"
+        print(d)
+        proc.stdin.write(d)
+        proc.stdin.flush()
+        returns = [None]
+        thread = doParallel(readline, [proc.stdout, timeout], returns, state=2)
+        while returns[0] is None:
+            if time.time() - t > timeout:
+                raise TimeoutError("Request timed out.")
+            time.sleep(0.001)
+        resp = eval(returns[0])
+        print(resp)
+        if issubclass(resp.__class__, Exception):
+            raise resp
+        resp = eval(resp.decode("utf-8"))
+        if issubclass(resp.__class__, Exception):
+            raise resp
+        resp = str(resp)
+        output = [resp]
+    except TimeoutError as ex:
+        print(traceback.format_exc())
+        try:
+            proc.kill()
+        except psutil.NoSuchProcess:
+            pass
+        __subs__.pop(key)
+        output = repr(ex)
+    except Exception as ex:
+        print(traceback.format_exc())
+        output = repr(ex)
+    proc.busy = False
+    thread.kill()
+    return output
+
+
 class dynamicFunc:
+    
     def __init__(self, func):
         self.text = func
         self.func = eval(func)
@@ -1181,161 +2359,230 @@ class dynamicFunc:
     def __repr__(self):
         return self.text
 
-
 def performAction(action):
-    try:
-        time.sleep(action[-1])
-    except:
-        pass
-    if len(action) > 1:
-        x = action[1]
-    else:
-        x = None
-    if x is not None:
-        if type(x) is list:
-            y = action[0](*x)
-        else:
-            y = action[0](*x[0], **x[1])
-    else:
-        y = action[0]()
-    if len(action) > 4:
-        action[2][action[3]] = y
-
+    if "delay" in action:
+        time.sleep(action["delay"])
+    action.get("retn", [0])[0] = action["func"](*action.get("args", ()), **action.get("kwargs", {}))
 
 class _parallel:
+    
     def __init__(self):
-        self.max = 32
-        self.running = {i: self.new() for i in range(self.max)}
+        self.max = 64
+        self.running = {i: self.new(i) for i in range(self.max)}
         for i in self.running:
             self.running[i].start()
 
     class new(threading.Thread):
-        def __init__(self):
+        
+        def __init__(self, p_id, killable=True):
             threading.Thread.__init__(self)
-            self.actions = []
+            self.killable = killable
+            self.id = p_id
+            self.actions = hlist()
             self.state = 0
+            self.action = None
             self.daemon = True
-            self._stop = threading.Event()
 
-        def __call__(self, *action):
+        def __call__(self, action):
             self.actions.append(action)
-            self.state = 1
+            self.state = inf
 
         def run(self):
             while True:
                 try:
+                    if self.actions:
+                        self.state = max(i.get("state", 1) for i in self.actions)
+                    time.sleep(0.009 * (random.random() + 1))
+                    if self.actions is None:
+                        print("EXIT")
+                        return
                     while self.actions:
-                        action = self.actions[0]
-                        self.actions = self.actions[1:]
-                        performAction(action)
-                    self.state = -1
-                    time.sleep(0.007)
+                        self.action = self.actions.popleft()
+                        performAction(self.action)
                 except TimeoutError:
                     pass
-
-        def stop(self):
-            self._stop.set()
+                except:
+                    print(traceback.format_exc())
+                if type(self.id) is str:
+                    print("EXIT")
+                    break
+                self.state = -1
 
         def get_id(self):
             if hasattr(self, "_thread_id"):
                 return self._thread_id
             for t_id, thread in threading._active.items():
                 if thread is self:
+                    self._thread_id = t_id
                     return t_id
 
-        def kill(self):
+        def kill(self, destroy=False):
             thread_id = self.get_id()
-            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                thread_id, ctypes.py_object(TimeoutError)
+            if destroy or type(self.id) is str:
+                self.actions = None
+                res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                    thread_id,
+                    ctypes.py_object(KeyboardInterrupt),
                 )
-            if res > 1:
+            else:
+                res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+                    thread_id,
+                    ctypes.py_object(TimeoutError),
+                )
+            if res != 1:
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(
-                    thread_id, ctypes.py_object(BaseException)
-                    )
-                self.stop()
+                    thread_id,
+                    ctypes.py_object(BaseException),
+                )
+                self.actions = None
+                try:
+                    del threading._active[thread_id]
+                except KeyError:
+                    pass
+                if not destroy and type(self.id) is not str:
+                    processes.running[self.id] = processes.new(self.id)
+            elif type(self.id) is str:
+                self.actions = None
+                try:
+                    del threading._active[thread_id]
+                except KeyError:
+                    pass
 
-
-def doParallel(func, data_in=None, data_out=[0], start=0, end=None,
-               per=1, delay=0, maxq=64, name=False):
-    global processes
-    if end == None:
-        end = len(data_out)
-    ps = processes.running
-    for i in range(start, end):
-        if name:
-            d = name
-            ps[d] = processes.new()
+def doParallel(func, args=None, data_out=[0], kwargs=None, name=None, **kws):
+    """
+Performs an action using parallel threads."""
+    ps = threads.running
+    if name is not None:
+        d = str(name)
+        ps[d] = threads.new(d, kws.get("killable", True))
+        p = ps[d]
+        p.start()
+    else:
+        t = d = 0
+        p = ps[0]
+        while p.state > 0:
+            d = xrand(threads.max)
             p = ps[d]
-            p.start()
-        else:
-            t = d = 0
-            p = ps[0]
-            while p.state > 0:
-                d = xrand(processes.max)
-                p = ps[d]
-                if t > processes.max:
-                    break
-                t += 1
-            while p.state > 1 or len(p.actions) >= maxq:
-                d = xrand(processes.max)
-                p = ps[d]
-        p(func, data_in, data_out, i, delay)
-
+            if t > threads.max:
+                break
+            t += 1
+        while p.state > 1 or len(p.actions) >= 64:
+            time.sleep(0.005)
+            d = xrand(threads.max)
+            p = ps[d]
+    action = kws
+    if args is not None:
+        action["args"] = args
+    if kwargs is not None:
+        action["kwargs"] = kwargs
+    action["func"] = func
+    action["retn"] = data_out
+    p(action)
+    return p
 
 def killThreads():
-    global processes
-    running = tuple(processes.running)
+    running = tuple(threads.running)
     for i in running:
-        if type(i) is int and i in processes.running:
-            p = processes.running[i]
+        if threads.running[i].killable:
+            p = threads.running[i]
             p.kill()
-            del p
-    processes = _parallel()
-
 
 def waitParallel(delay):
-    global processes
     t = time.time()
-    running = tuple(processes.running)
+    running = tuple(threads.running)
     for i in running:
-        if type(i) is int and i in processes.running:
-            p = processes.running[i]
+        if type(i) is int and i in threads.running:
+            p = threads.running[i]
             while p.state > 0 and time.time() - t < delay:
                 time.sleep(0.001)
 
+threads = _parallel()
 
-def updatePrint():
-    global printGlobals, printLocals, printVars, origPrint
+
+def getLineCount(fn):
+    f = open(fn, "rb")
+    count = 1
+    size = 0
     while True:
-        if printLocals:
-            printLocals += printVars
-            origPrint(printLocals,end="")
-            printGlobals += printLocals
-            printLocals = ""
-        time.sleep(0.1)
+        try:
+            i = f.read(1024)
+            if not i:
+                raise EOFError
+            size += len(i)
+            count += i.count(b"\n")
+        except EOFError:
+            f.close()
+            return hlist((size, count))
 
 
-def logPrint(*args, sep=" ", end="\n"):
-    global printLocals
-    printLocals += str(sep).join((str(i) for i in args)) + str(end)
+def iscode(fn):
+    fn = str(fn)
+    return fn.endswith(".py") or fn.endswith(".pyw")# or fn.endswith(".c") or fn.endswith(".cpp")
+
+__umap = {
+    "<": "",
+    ">": "",
+    "|": "",
+    "*": "",
+    " ": "%20",
+}
+__utrans = "".maketrans(__umap)
+
+def verifyURL(f):
+    if "file:" in f:
+        raise PermissionError("Unable to open local file " + f + ".")
+    return f.strip(" ").translate(__utrans)
+
+class urlBypass(urllib.request.FancyURLopener):
+    version = "Mozilla/5." + str(xrand(1, 10))
+
+def urlOpen(url):
+    opener = urlBypass()
+    resp = opener.open(verifyURL(url))
+    if resp.getcode() != 200:
+        raise ConnectionError("Error " + str(resp.code))
+    return resp
+    s = resp.read().decode("utf-8")
 
 
-def setPrint(string):
-    global printVars
-    printVars = string
+def logClear():
+    if os.name == 'nt':
+        os.system('cls')
+    else:
+        os.system('clear')
 
+class __logPrinter():
 
-def dumpLogData():
-    global printGlobals
-    f = open("cache/log.txt", "w")
-    f.write(printGlobals)
-    f.close()
+    print_temp = ""
+    
+    def updatePrint(self, file):
+        if file is None:
+            outfunc = sys.stdout.write
+            enc = lambda x: str(x)
+        else:
+            def filePrint(b):
+                f = open(file, "ab+")
+                f.write(b)
+                f.close()
+            outfunc = filePrint
+            enc = lambda x: bytes(str(x), "utf-8")
+        outfunc(enc("Logging started...\n"))
+        while True:
+            if self.print_temp:
+                if len(self.print_temp) > 4096 or self.print_temp.count("\n") > 48:
+                    self.print_temp = limStr(self.print_temp, 2048)
+                data = enc(self.print_temp)
+                #sys.stdout.write(repr(data))
+                outfunc(data)
+                self.print_temp = ""
+            time.sleep(1)
+            #sys.stdout.write(str(f))
 
+    def logPrint(self, *args, sep=" ", end="\n", prefix="", **void):
+        self.print_temp += str(sep).join((str(i) for i in args)) + str(end) + str(prefix)
 
-processes = _parallel()
-printVars = ""
-printLocals = ""
-printGlobals = ""
-origPrint = print
-print = logPrint
-doParallel(updatePrint, name="printer")
+    def __init__(self, file=None):
+        doParallel(self.updatePrint, [file], name="printer", killable=False)
+
+__printer = __logPrinter("log.txt")
+print = __printer.logPrint

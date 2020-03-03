@@ -1,21 +1,17 @@
-import nekos, rule34, discord, urllib, asyncio
+import nekos, rule34, discord
 from smath import *
 
 image_forms = [
-    "gif",
-    "png",
-    "bmp",
-    "jpg",
-    "jpeg",
-    "tiff",
+    ".gif",
+    ".png",
+    ".bmp",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
 ]
 
 
 def pull_e621(argv, data, thr, delay=5):
-
-    class urlBypass(urllib.request.FancyURLopener):
-        version = "Mozilla/5." + str(xrand(1, 10))
-    
     try:
         v1, v2 = 1, 1
         opener = urlBypass()
@@ -27,23 +23,26 @@ def pull_e621(argv, data, thr, delay=5):
             raise ConnectionError("Error " + str(resp.getcode()))
         s = resp.read().decode("utf-8")
 
-        ind = s.index('class="next_page" rel="next"')
-        s = s[ind - 90 : ind]
-        d = s.split(" ")
-        i = -1
-        while True:
-            if "</a>" in d[i]:
-                break
-            i -= 1
-        u = d[i][:-4]
-        u = u[u.index(">") + 1 :]
-        v1 = xrand(1, int(u))
+        try:
+            ind = s.index('class="next_page" rel="next"')
+            s = s[ind - 90 : ind]
+            d = s.split(" ")
+            i = -1
+            while True:
+                if "</a>" in d[i]:
+                    break
+                i -= 1
+            u = d[i][:-4]
+            u = u[u.index(">") + 1 :]
+            v1 = xrand(1, int(u))
 
-        url = baseurl + str(v1) + "/" + items
-        resp = opener.open(url)
-        if resp.getcode() != 200:
-            raise ConnectionError("Error " + str(resp.getcode()))
-        s = resp.read().decode("utf-8")
+            url = baseurl + str(v1) + "/" + items
+            resp = opener.open(url)
+            if resp.getcode() != 200:
+                raise ConnectionError("Error " + str(resp.getcode()))
+            s = resp.read().decode("utf-8")
+        except ValueError:
+            pass
 
         try:
             limit = s.index('class="next_page" rel="next"')
@@ -86,7 +85,7 @@ def pull_e621(argv, data, thr, delay=5):
                     found = True
             if not found:
                 x = None
-        data[thr] = [url, v1, v2]
+        data[thr] = [url, v1, v2 + 1]
     except:
         data[thr] = 0
     print(data)
@@ -103,16 +102,32 @@ def pull_rule34_xxx(argv, data, thr, delay=5):
         t = time.time()
         while time.time() - t < delay:
             try:
-                sources = rule34_sync.getImages(tags=argv, fuzzy=True,
-                                                randomPID=True, singlePage=True)
+                sources = rule34_sync.getImages(
+                    tags=argv,
+                    fuzzy=True,
+                    randomPID=True,
+                    singlePage=True
+                )
                 break
             except TimeoutError:
                 pass
         if sources:
-            v2 = xrand(len(sources))
-            url = sources[v2].file_url
-            v1 = max(1, sources[v2].score)
-            data[thr] = [url, v1, v2]
+            attempts = 0
+            while attempts < 1000:
+                v2 = xrand(len(sources))
+                url = sources[v2].file_url
+                found = False
+                for i in image_forms:
+                    if i in url:
+                        found = True
+                        break
+                if found:
+                    break
+                attempts += 1
+            if attempts >= 1000:
+                raise
+            v1 = 1
+            data[thr] = [url, v1, v2 + 1]
         else:
             raise
     except:
@@ -123,7 +138,7 @@ def pull_rule34_xxx(argv, data, thr, delay=5):
 def pull_rule34_paheal(argv, data, thr, delay=5):
     try:
         v1, v2 = 1, 1
-        items = argv.split(" ")
+        items = argv.lower().split(" ")
         if not len(argv.replace(" ", "")):
             tagsearch = [chr(i + 65) for i in range(26)]
         else:
@@ -132,8 +147,8 @@ def pull_rule34_paheal(argv, data, thr, delay=5):
                 if i[0] not in tagsearch:
                     tagsearch.append(i[0])
         rx = xrand(len(tagsearch))
-        baseurl = "https://rule34.paheal.net/tags?starts_with="
-        url = baseurl + tagsearch[rx]
+        baseurl = "https://rule34.paheal.net/tags/alphabetic?starts_with="
+        url = baseurl + tagsearch[rx] + "&mincount=1"
         req = urllib.request.Request(url)
         resp = urllib.request.urlopen(req, timeout=delay)
         if resp.getcode() != 200:
@@ -207,7 +222,7 @@ def pull_rule34_paheal(argv, data, thr, delay=5):
                 break
         v2 = xrand(len(sources))
         url = sources[v2]
-        data[thr] = [url, v1, v2]
+        data[thr] = [url, v1, v2 + 1]
     except:
         data[thr] = 0
     print(data)
@@ -220,11 +235,11 @@ async def searchRandomNSFW(argv, delay=9):
     for i in range(len(funcs)):
         doParallel(funcs[i], [argv, data, i, delay - 3])
     while None in data and time.time() - t < delay:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.6)
     data = [i for i in data if i]
     i = xrand(len(data))
     if not len(data) or data[i] is None:
-        raise EOFError("Unable to locate any search results.")
+        raise EOFError("Unable to locate any search results for " + uniStr(argv) + ".")
     return data[i]
 
 
@@ -303,24 +318,24 @@ def is_nsfw(channel):
         return True
 
 
-class neko:
+class Neko:
     is_command = True
 
     def __init__(self):
         self.name = []
-        self.minm = 1
-        self.desc = "Pulls a random image from nekos.life and embeds it."
-        self.usag = "<tags:[](?r)> <verbose:(?v)> <list:(?l)>"
+        self.min_level = 1
+        self.description = "Pulls a random image from nekos.life and embeds it."
+        self.usage = "<tags[neko]> <random(?r)> <verbose(?v)> <list(?l)>"
 
     async def __call__(self, args, argv, flags, channel, **void):
         isNSFW = is_nsfw(channel)
         if "l" in flags:
             available = []
-            text = "Available commands in **#" + channel.name + "**:\n`"
+            text = "Available tags in **" + channel.name + "**:\n```ini\n"
             for key in neko_tags:
                 if isNSFW or not neko_tags[key] == True:
                     available.append(key)
-            text += ", ".join(sorted(available)) + "`"
+            text += str(sorted(available)) + "```"
             return text
         tagNSFW = False
         selected = []
@@ -330,16 +345,19 @@ class neko:
                 if neko_tags.get(tag, 0) == True:
                     tagNSFW = True
                     if not isNSFW:
-                        raise PermissionError("This command is only available in NSFW channels.")
+                        raise PermissionError(
+                            "This command is only available in " + uniStr("NSFW") + " channels."
+                            )
                 selected.append(tag)
         for x in range(flags.get("r", 0)):
             possible = [i for i in neko_tags if neko_tags[i] <= isNSFW]
             selected.append(possible[xrand(len(possible))])
         if not selected:
-            if not len(argv.replace(" ", "")):
+            if not argv:
                 url = nekos.img("neko")
             else:
-                raise EOFError("Search tag not found.")
+                raise EOFError(
+                    "Search tag " + uniStr(argv) + " not found. Use ?l for list.")
         else:
             v = xrand(len(selected))
             get = selected[v]
@@ -357,20 +375,24 @@ class neko:
         if "v" in flags:
             text = "Pulled from " + url
             return text
-        emb = discord.Embed(url=url)
+        emb = discord.Embed(
+            url=url,
+            colour=self._vars.randColour(),
+        )
         emb.set_image(url=url)
         print(url)
         asyncio.create_task(channel.send(embed=emb))
 
 
-class lewd:
+class Lewd:
     is_command = True
+    time_consuming = True
 
     def __init__(self):
         self.name = ["nsfw"]
-        self.minm = 1
-        self.desc = "Pulls a random image from a search on Rule34 and e621, and embeds it."
-        self.usag = "<query> <verbose:(?v)>"
+        self.min_level = 1
+        self.description = "Pulls a random image from a search on Rule34 and e621, and embeds it."
+        self.usage = "<query> <verbose(?v)>"
 
     async def __call__(self, _vars, args, flags, channel, **void):
         if not is_nsfw(channel):
@@ -383,26 +405,12 @@ class lewd:
                 + "\nImage **__" + str(objs[2])
                 + "__** on page **__" + str(objs[1])
                 + "__**"
-                )
+            )
             return text
-        emb = discord.Embed(url=url)
+        emb = discord.Embed(
+            url=url,
+            colour=_vars.randColour(),
+        )
         emb.set_image(url=url)
         print(url)
         asyncio.create_task(channel.send(embed=emb))
-
-
-class owoify:
-    is_command = True
-
-    def __init__(self):
-        self.name = ["owo"]
-        self.minm = 0
-        self.desc = "owo-ifies text."
-        self.usag = "<string>"
-
-    async def __call__(self, argv, **void):
-        output = ""
-        while argv:
-            output += nekos.owoify(argv[:200])
-            argv = argv[200:]
-        return "```\n" + output + "```"
