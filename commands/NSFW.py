@@ -1,4 +1,5 @@
 import nekos, rule34, discord
+from pybooru import Moebooru, Danbooru
 from smath import *
 
 image_forms = [
@@ -89,6 +90,24 @@ def pull_e621(argv, data, thr, delay=5):
     except:
         data[thr] = 0
     print(data)
+
+    #true = moebooru
+    #false = danbooru
+booruSites =[
+    [True, 'konachan.com'],
+    [True, 'yande.re'],
+    [False, 'danbooru.donmai.us'],
+    [True, 'gelbooru.com'],
+    [True, 'capi-beta.sankakucomplex']
+    ]
+
+def pull_booru(argv, data, thr, delay=5):
+    booruInfo = xrand(len(booruSites))
+    client = Moebooru(booruInfo[1]) if booruInfo else Danbooru(booruInfo[1])
+    post = client.post_list(tags=argv, random=True)
+    url = post['file_url']
+    data[thr] = [url, 0, 1]
+    print(url)
 
 
 loop = asyncio.new_event_loop()
@@ -230,7 +249,7 @@ def pull_rule34_paheal(argv, data, thr, delay=5):
 
 async def searchRandomNSFW(argv, delay=9):
     t = time.time()
-    funcs = [pull_e621, pull_rule34_paheal, pull_rule34_xxx]
+    funcs = [pull_booru]
     data = [None for i in funcs]
     for i in range(len(funcs)):
         doParallel(funcs[i], [argv, data, i, delay - 3])
