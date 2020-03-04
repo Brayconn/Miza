@@ -93,16 +93,16 @@ def pull_e621(argv, data, thr, delay=5):
 
     #true = moebooru
     #false = danbooru
-booruSites ={
-    'http://konachan.com': True,
-    'http://yande.re': True,
-    'http://danbooru.donmai.us': False,
+booruSites =[
+    ['http://konachan.com', True],
+    ['http://yande.re', True],
+    ['http://danbooru.donmai.us', False],
     #'http://gelbooru.com': True,
-    'http://capi-beta.sankakucomplex': True
-    }
+    ['http://capi-beta.sankakucomplex', True]
+    ]
 
 def pull_booru(argv, data, thr, delay=5):
-    booruInfo = random.choice(booruSites.items())
+    booruInfo = random.choice(booruSites)
     client = Moebooru(site_url=booruInfo[0]) if booruInfo[1] else Danbooru(site_url=booruInfo[0])
     print(client.site_url)
     post = client.post_list(tags=argv, random=True, limit=1)
