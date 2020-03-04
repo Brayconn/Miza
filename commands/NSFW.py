@@ -102,8 +102,8 @@ booruSites =[
     ]
 
 def pull_booru(argv, data, thr, delay=5):
-    booruInfo = xrand(len(booruSites))
-    client = Moebooru(booruInfo[1]) if booruInfo else Danbooru(booruInfo[1])
+    booruInfo = booruSites[xrand(len(booruSites))]
+    client = Moebooru(booruInfo[1]) if booruInfo[0] else Danbooru(booruInfo[1])
     post = client.post_list(tags=argv, random=True)
     url = post['file_url']
     data[thr] = [url, 0, 1]
