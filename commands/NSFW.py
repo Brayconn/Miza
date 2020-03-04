@@ -94,7 +94,7 @@ def pull_e621(argv, data, thr, delay=5):
 booruSites = list(pybooru.resources.SITE_LIST.keys())
 
 def pull_booru(argv, data, thr, delay=5):
-    client = Moebooru(random.choice(booruSites))
+    client = pybooru.Moebooru(random.choice(booruSites))
     posts = client.post_list(tags=argv, random=True)
     if(len(posts) <= 0):
         return 0
