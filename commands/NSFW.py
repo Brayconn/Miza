@@ -97,17 +97,19 @@ booruSites ={
     'http://konachan.com': True,
     'http://yande.re': True,
     'http://danbooru.donmai.us': False,
-    'http://gelbooru.com': True,
+    #'http://gelbooru.com': True,
     'http://capi-beta.sankakucomplex': True
     }
 
 def pull_booru(argv, data, thr, delay=5):
     booruInfo = random.choice(booruSites.items())
     client = Moebooru(site_url=booruInfo[0]) if booruInfo[1] else Danbooru(site_url=booruInfo[0])
+    print(client.site_url)
     post = client.post_list(tags=argv, random=True, limit=1)
-    url = post[0]['file_url']
-    data[thr] = [url, 0, 1]
+    url = post[0]['file_url'] if len(post) > 0 else ''
     print(url)
+    data[thr] = [url, 0, 1]
+    
 
 
 loop = asyncio.new_event_loop()
