@@ -91,24 +91,16 @@ def pull_e621(argv, data, thr, delay=5):
         data[thr] = 0
     print(data)
 
-    #true = moebooru
-    #false = danbooru
-booruSites =[
-    ['http://konachan.com', True],
-    ['http://yande.re', True],
-    ['http://danbooru.donmai.us', False],
-    #'http://gelbooru.com': True,
-    ['http://capi-beta.sankakucomplex', True]
-    ]
+booruSites = list(pybooru.resources.SITE_LIST.keys())
 
 def pull_booru(argv, data, thr, delay=5):
-    booruInfo = random.choice(booruSites)
-    client = Moebooru(site_url=booruInfo[0]) if booruInfo[1] else Danbooru(site_url=booruInfo[0])
-    print(client.site_url)
-    post = client.post_list(tags=argv, random=True, limit=1)
-    url = post[0]['file_url'] if len(post) > 0 else ''
-    print(url)
-    data[thr] = [url, 0, 1]
+    client = Moebooru(random.choice(booruSites))
+    posts = client.post_list(tags=argv, random=True)
+    if(len(posts) <= 0):
+        return 0
+    choice = xrand(len(posts))
+    url = posts[0]['file_url']
+    data[thr] = [url, 1, choice + 1]
     
 
 
