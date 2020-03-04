@@ -95,7 +95,11 @@ booruSites = list(pybooru.resources.SITE_LIST.keys())
 
 def pull_booru(argv, data, thr, delay=5):
     client = pybooru.Moebooru(random.choice(booruSites))
-    posts = client.post_list(tags=argv, random=True, limit=10)
+    try:
+        posts = client.post_list(tags=argv, random=True, limit=10)
+    except:
+        print(traceback.format_exc())
+        return 0
     if(len(posts) <= 0):
         return 0
     choice = xrand(len(posts))
