@@ -1,5 +1,5 @@
 import nekos, rule34, discord
-from pybooru import Moebooru, Danbooru
+import pybooru
 from smath import *
 
 image_forms = [
